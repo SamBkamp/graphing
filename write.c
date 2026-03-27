@@ -8,8 +8,6 @@
 #include <assert.h>
 #include <sys/mman.h>
 
-#define RGB_PIXEL_SIZE 3
-
 typedef struct{
   uint8_t R;
   uint8_t G;
