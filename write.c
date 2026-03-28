@@ -86,7 +86,9 @@ void circle(pixel_coord center, double radius, uint32_t column_size, rgb_pixel *
       if(distance < radius)
         buffer[(int)(i+j)] = colour;
       else{
-        double vector_scale = fmin(pow(((distance-radius)/1.2), 2), 1);
+        double fade_width = 1.2;
+        double fade_aggression = 2;
+        double vector_scale = fmin(pow(((distance-radius)/fade_width), fade_aggression), 1);
         rgb_pixel colour_diff = {colour.R + (uint8_t)((0xFF-colour.R)*vector_scale),
                                  colour.G + (uint8_t)((0xFF-colour.G)*vector_scale),
                                  colour.B + (uint8_t)((0xFF-colour.B)*vector_scale)};
