@@ -88,9 +88,7 @@ int main(int argc, char* argv[]){
 
   //line
   rgb_pixel black = {0x00, 0x00, 0x00};
-  linear(0, 1, black, &ctx);
   linear(0, 0, black, &ctx);
-  linear(0, -1, black, &ctx);
 
   vertical_line(black, &ctx);
 
@@ -98,12 +96,7 @@ int main(int argc, char* argv[]){
   rgb_pixel dithered_nice_blue = {nice_blue.R + ((0xFF - nice_blue.R)*0.5),
                                   nice_blue.G + ((0xFF - nice_blue.G)*0.5),
                                   nice_blue.B + ((0xFF - nice_blue.B)*0.5)};
-  linear(0.5, 1, nice_blue, &ctx);
   linear(0.5, 0, nice_blue, &ctx);
-  linear(0.5, -1, nice_blue, &ctx);
-  linear(0.5, 2, dithered_nice_blue, &ctx);
-  linear(0.5, -2, dithered_nice_blue, &ctx);
-
 
   if(png_image_write_to_file(&image, "output.png", 0, buffer, 0, NULL) == 0 ){
     perror("failed to write");
@@ -132,13 +125,31 @@ void vertical_line(rgb_pixel colour, image_ctx *ctx){
 }
 
 void linear(double gradient, double constant, rgb_pixel colour, image_ctx *ctx){
-  double x = -ctx->center.y;
+  double x = -ctx->center.x;
   double y = 0;
+  int32_t width = 1;
 
   for(; x < ctx->center.x; x++){
     y = (gradient*x*-1)-constant;
-    if(y >= -ctx->center.y && y <= ctx->center.y)
-      ctx->buffer[(uint32_t)y+ctx->center.y][(uint32_t)x+ctx->center.x] = colour;
+    for(int32_t i = y-width; i <= y+width; i++){
+      if(i+ctx->center.y >= 0 && i+ctx->center.y < (int32_t)ctx->width)
+        {ctx->buffer[(uint32_t)floor(i+ctx->center.y)][(uint32_t)floor(x+ctx->center.x)] = colour;}
+    }
+    double dithered_d_lo = y-width-1+ctx->center.y;
+    double dithered_d_hi = y+width+1+ctx->center.y;
+    if(dithered_d_lo >= 0 && dithered_d_lo < (int32_t) ctx->width && gradient != 0){
+        ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x] =
+          (rgb_pixel){colour.R + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].R - colour.R)*0.5),
+                      colour.G + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].G - colour.G)*0.5),
+                      colour.B + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].B - colour.B)*0.5)};
+      }
+
+    if(dithered_d_hi >= 0 && dithered_d_hi < (int32_t)ctx->width && gradient != 0){
+        ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x] =
+          (rgb_pixel){colour.R + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].R - colour.R)*0.5),
+                      colour.G + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].G - colour.G)*0.5),
+                      colour.B + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].B - colour.B)*0.5)};
+      }
   }
 }
 
