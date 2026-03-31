@@ -30,10 +30,10 @@ typedef struct{
 double pythagoras(double length, double width);
 void square(pixel_coord center, uint32_t size, rgb_pixel colour, image_ctx *ctx);
 void circle(pixel_coord center, double radius, rgb_pixel colour, image_ctx *ctx);
-void linear(double gradient, double constant, rgb_pixel colour, image_ctx *ctx);
-void vertical_line(rgb_pixel colour, image_ctx *ctx);
+void clamped_linear(int32_t start, int32_t end, double gradient, double constant, rgb_pixel colour, int32_t width, image_ctx *ctx);
+void vertical_line(rgb_pixel colour, image_ctx *ctx, int32_t constant);
 
-int main(int argc, char* argv[]){
+int main(void){
   image_ctx ctx = {720, 720, {720/2, 720/2}, {0xFF, 0xFF, 0xFF}, NULL};
   assert(sizeof(rgb_pixel) == 3);
   rgb_pixel *buffer;
@@ -71,6 +71,23 @@ int main(int argc, char* argv[]){
     buffer[i] = ctx.bg_colour;
   }
 
+  int32_t pixels_per_int = ctx.width/10;
+  rgb_pixel grey = {0xee, 0xee, 0xee};
+  //grid lines
+  for(int32_t i = -360; i < 360; i+=pixels_per_int){
+    clamped_linear(-360, 360, 0, i, grey, 1, &ctx);
+  }
+  for(int32_t i = -(ctx.width/2)+pixels_per_int; i < (int32_t)(ctx.width/2); i+=pixels_per_int){
+    vertical_line(grey, &ctx, i);
+  }
+
+  //x and y axis
+  rgb_pixel black = {0x00, 0x00, 0x00};
+  clamped_linear(-(ctx.height/2), (ctx.height/2), 0, 0, black, 1, &ctx);
+
+  vertical_line(black, &ctx, 0);
+
+
 
   //square
   /*
@@ -87,16 +104,13 @@ int main(int argc, char* argv[]){
   */
 
   //line
-  rgb_pixel black = {0x00, 0x00, 0x00};
-  linear(0, 0, black, &ctx);
 
-  vertical_line(black, &ctx);
 
   rgb_pixel nice_blue = {0x00, 0xAA, 0xB7};
-  rgb_pixel dithered_nice_blue = {nice_blue.R + ((0xFF - nice_blue.R)*0.5),
-                                  nice_blue.G + ((0xFF - nice_blue.G)*0.5),
-                                  nice_blue.B + ((0xFF - nice_blue.B)*0.5)};
-  linear(0.5, 0, nice_blue, &ctx);
+
+  clamped_linear(-(ctx.width/2), ctx.width/2, 0.5, ctx.height*0.1, nice_blue, 1, &ctx);
+
+  clamped_linear(-50, 50, 0.5, 0, nice_blue, 1, &ctx);
 
   if(png_image_write_to_file(&image, "output.png", 0, buffer, 0, NULL) == 0 ){
     perror("failed to write");
@@ -115,41 +129,42 @@ double pythagoras(double length, double width){
 
 }
 
-void vertical_line(rgb_pixel colour, image_ctx *ctx){
+void vertical_line(rgb_pixel colour, image_ctx *ctx, int32_t constant){
 
   for(uint16_t i = 0; i < 720; i++){
-    ctx->buffer[i][ctx->center.x] = colour;
-    ctx->buffer[i][(ctx->center.x)+1] = colour;
-    ctx->buffer[i][(ctx->center.x)-1] = colour;
+    ctx->buffer[i][ctx->center.x+constant] = colour;
+    ctx->buffer[i][(ctx->center.x)+1+constant] = colour;
+    ctx->buffer[i][(ctx->center.x)-1+constant] = colour;
   }
 }
 
-void linear(double gradient, double constant, rgb_pixel colour, image_ctx *ctx){
-  double x = -ctx->center.x;
+void clamped_linear(int32_t start, int32_t end, double gradient, double constant, rgb_pixel colour, int32_t width, image_ctx *ctx){
+  double x = start;
   double y = 0;
-  int32_t width = 1;
-
-  for(; x < ctx->center.x; x++){
+  for(; x < end; x++){
     y = (gradient*x*-1)-constant;
-    for(int32_t i = y-width; i <= y+width; i++){
-      if(i+ctx->center.y >= 0 && i+ctx->center.y < (int32_t)ctx->width)
-        {ctx->buffer[(uint32_t)floor(i+ctx->center.y)][(uint32_t)floor(x+ctx->center.x)] = colour;}
-    }
-    double dithered_d_lo = y-width-1+ctx->center.y;
-    double dithered_d_hi = y+width+1+ctx->center.y;
-    if(dithered_d_lo >= 0 && dithered_d_lo < (int32_t) ctx->width && gradient != 0){
-        ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x] =
-          (rgb_pixel){colour.R + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].R - colour.R)*0.5),
-                      colour.G + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].G - colour.G)*0.5),
-                      colour.B + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].B - colour.B)*0.5)};
+    for(double i = y-width; i <= y+width; i++){
+      if(i+ctx->center.y >= 0 && i+ctx->center.y < (int32_t)ctx->width){
+        ctx->buffer[(uint32_t)roundf(i+ctx->center.y)][(uint32_t)x+ctx->center.x] = colour;
       }
+    }
+
+    double dithered_d_lo = roundf(y-width-1+ctx->center.y);
+    double dithered_d_hi = roundf(y+width+1+ctx->center.y);
+    if(dithered_d_lo >= 0 && dithered_d_lo < (int32_t) ctx->width && gradient != 0){
+      ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x] =
+        (rgb_pixel){colour.R + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].R - colour.R)*0.5),
+                    colour.G + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].G - colour.G)*0.5),
+                    colour.B + ((ctx->buffer[(uint32_t)dithered_d_lo][(uint32_t)x+ctx->center.x].B - colour.B)*0.5)};
+    }
 
     if(dithered_d_hi >= 0 && dithered_d_hi < (int32_t)ctx->width && gradient != 0){
-        ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x] =
-          (rgb_pixel){colour.R + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].R - colour.R)*0.5),
-                      colour.G + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].G - colour.G)*0.5),
-                      colour.B + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].B - colour.B)*0.5)};
-      }
+      ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x] =
+        (rgb_pixel){colour.R + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].R - colour.R)*0.5),
+                    colour.G + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].G - colour.G)*0.5),
+                    colour.B + ((ctx->buffer[(uint32_t)dithered_d_hi][(uint32_t)x+ctx->center.x].B - colour.B)*0.5)};
+    }
+
   }
 }
 
