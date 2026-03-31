@@ -32,6 +32,7 @@ void square(pixel_coord center, uint32_t size, rgb_pixel colour, image_ctx *ctx)
 void circle(pixel_coord center, double radius, rgb_pixel colour, image_ctx *ctx);
 void clamped_linear(int32_t start, int32_t end, double gradient, double constant, rgb_pixel colour, int32_t width, image_ctx *ctx);
 void clamped_vertical_line(int32_t starty, int32_t endy, rgb_pixel colour, image_ctx *ctx, int32_t constant);
+void point(pixel_coord p, rgb_pixel colour, image_ctx *ctx);
 
 int main(void){
   image_ctx ctx = {720, 720, {720/2, 720/2}, {0xFF, 0xFF, 0xFF}, NULL};
@@ -75,23 +76,25 @@ int main(void){
   int32_t pixels_per_int = ctx.width/10;
   rgb_pixel grey = {0xee, 0xee, 0xee};
   rgb_pixel black = {0x00, 0x00, 0x00};
+  rgb_pixel nice_blue = {0x00, 0xAA, 0xB7};
+
   //grid lines
   //X direction
   for(int32_t i = -(ctx.width/2); i < (int32_t)(ctx.width/2); i+=pixels_per_int){
-    clamped_linear(-(ctx.width/2), (ctx.width/2), 0, i, grey, 1, &ctx); //line
+    clamped_linear(-ctx.center.x, ctx.center.x, 0, i, grey, 1, &ctx); //line
     clamped_linear(-(tick_length>>1), tick_length>>1, 0, i, black, 1, &ctx); //notches
   }
   //Y direction
   for(int32_t i = -(ctx.width/2)+pixels_per_int; i < (int32_t)(ctx.width/2); i+=pixels_per_int){
-    clamped_vertical_line(-(ctx.height/2), (ctx.height/2), grey, &ctx, i);
+    clamped_vertical_line(-ctx.center.y, ctx.center.y, grey, &ctx, i);
     clamped_vertical_line(-(tick_length>>1), tick_length>>1, black, &ctx, i);
   }
 
 
   //x and y axis
-  clamped_linear(-(ctx.height/2), (ctx.height/2), 0, 0, black, 1, &ctx);
+  clamped_linear(-ctx.center.y, ctx.center.y, 0, 0, black, 1, &ctx);
 
-  clamped_vertical_line(-(ctx.height/2), (ctx.height/2), black, &ctx, 0);
+  clamped_vertical_line(-ctx.center.y, ctx.center.y, black, &ctx, 0);
 
 
 
@@ -102,21 +105,17 @@ int main(void){
   square(center, size, (rgb_pixel){0x00, 0xAA, 0xB7}, &ctx);
 
 
-  //circle
-  pixel_coord center2 = {image.width>>2, image.height>>2};
-  double radius = 20;
-  rgb_pixel colour = (rgb_pixel){0x00, 0xAA, 0xB7};
-  circle(center2, radius, colour, &ctx);
   */
-
+  //circle
+  pixel_coord center2 = {180, 180*0.5+(ctx.height*0.1)};
+  double radius = 5;
+  circle(center2, radius, nice_blue, &ctx);
+  point((pixel_coord){90, 90*0.5+(ctx.height*0.1)}, nice_blue, &ctx);
+  point((pixel_coord){-90, -90}, nice_blue, &ctx);
   //line
 
 
-  rgb_pixel nice_blue = {0x00, 0xAA, 0xB7};
-
-  clamped_linear(-(ctx.width/2), ctx.width/2, 0.5, ctx.height*0.1, nice_blue, 1, &ctx);
-
-  clamped_linear(-50, 50, 0.5, 0, nice_blue, 1, &ctx);
+  clamped_linear(-ctx.center.x, ctx.center.x, 0.5, ctx.height*0.1, nice_blue, 1, &ctx);
 
   if(png_image_write_to_file(&image, "output.png", 0, buffer, 0, NULL) == 0 ){
     perror("failed to write");
@@ -133,6 +132,10 @@ double pythagoras(double length, double width){
   double ret = pow(length, 2) + pow(width, 2);
   return sqrt(ret);
 
+}
+
+void point(pixel_coord p, rgb_pixel colour, image_ctx *ctx){
+  circle(p, 5, colour, ctx);
 }
 
 void clamped_vertical_line(int32_t starty, int32_t endy, rgb_pixel colour, image_ctx *ctx, int32_t constant){
@@ -177,9 +180,9 @@ void clamped_linear(int32_t start, int32_t end, double gradient, double constant
 
 void circle(pixel_coord center, double radius, rgb_pixel colour, image_ctx *ctx){
 
-  for(double i = center.y - radius; i <= center.y + radius; i++){
-    for(double j = center.x - radius; j <= center.x + radius; j++){
-      double distance = pythagoras(i-center.y, j-center.x);
+  for(double i = (ctx->center.y-center.y) - radius; i <= (ctx->center.y-center.y) + radius; i++){
+    for(double j = (center.x+ctx->center.x) - radius; j <= (center.x+ctx->center.x) + radius; j++){
+      double distance = pythagoras(i-(ctx->center.y-center.y), j-(ctx->center.y+center.x));
       if(distance < radius)
         ctx->buffer[(int)i][(int)j] = colour;
       else{
