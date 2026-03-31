@@ -31,7 +31,7 @@ double pythagoras(double length, double width);
 void square(pixel_coord center, uint32_t size, rgb_pixel colour, image_ctx *ctx);
 void circle(pixel_coord center, double radius, rgb_pixel colour, image_ctx *ctx);
 void clamped_linear(int32_t start, int32_t end, double gradient, double constant, rgb_pixel colour, int32_t width, image_ctx *ctx);
-void vertical_line(rgb_pixel colour, image_ctx *ctx, int32_t constant);
+void clamped_vertical_line(int32_t starty, int32_t endy, rgb_pixel colour, image_ctx *ctx, int32_t constant);
 
 int main(void){
   image_ctx ctx = {720, 720, {720/2, 720/2}, {0xFF, 0xFF, 0xFF}, NULL};
@@ -71,21 +71,27 @@ int main(void){
     buffer[i] = ctx.bg_colour;
   }
 
+  uint8_t tick_length = 20;
   int32_t pixels_per_int = ctx.width/10;
   rgb_pixel grey = {0xee, 0xee, 0xee};
+  rgb_pixel black = {0x00, 0x00, 0x00};
   //grid lines
-  for(int32_t i = -360; i < 360; i+=pixels_per_int){
-    clamped_linear(-360, 360, 0, i, grey, 1, &ctx);
+  //X direction
+  for(int32_t i = -(ctx.width/2); i < (int32_t)(ctx.width/2); i+=pixels_per_int){
+    clamped_linear(-(ctx.width/2), (ctx.width/2), 0, i, grey, 1, &ctx); //line
+    clamped_linear(-(tick_length>>1), tick_length>>1, 0, i, black, 1, &ctx); //notches
   }
+  //Y direction
   for(int32_t i = -(ctx.width/2)+pixels_per_int; i < (int32_t)(ctx.width/2); i+=pixels_per_int){
-    vertical_line(grey, &ctx, i);
+    clamped_vertical_line(-(ctx.height/2), (ctx.height/2), grey, &ctx, i);
+    clamped_vertical_line(-(tick_length>>1), tick_length>>1, black, &ctx, i);
   }
+
 
   //x and y axis
-  rgb_pixel black = {0x00, 0x00, 0x00};
   clamped_linear(-(ctx.height/2), (ctx.height/2), 0, 0, black, 1, &ctx);
 
-  vertical_line(black, &ctx, 0);
+  clamped_vertical_line(-(ctx.height/2), (ctx.height/2), black, &ctx, 0);
 
 
 
@@ -129,9 +135,10 @@ double pythagoras(double length, double width){
 
 }
 
-void vertical_line(rgb_pixel colour, image_ctx *ctx, int32_t constant){
-
-  for(uint16_t i = 0; i < 720; i++){
+void clamped_vertical_line(int32_t starty, int32_t endy, rgb_pixel colour, image_ctx *ctx, int32_t constant){
+  int16_t low = (int16_t)fmin(ctx->center.y-starty, ctx->center.y-endy);
+  int16_t hi = (int16_t)fmax(ctx->center.y-starty, ctx->center.y-endy);
+  for(int16_t i = low; i < hi; i++){
     ctx->buffer[i][ctx->center.x+constant] = colour;
     ctx->buffer[i][(ctx->center.x)+1+constant] = colour;
     ctx->buffer[i][(ctx->center.x)-1+constant] = colour;
