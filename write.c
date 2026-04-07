@@ -33,6 +33,8 @@ void circle(pixel_coord center, double radius, rgb_pixel colour, image_ctx *ctx)
 void clamped_linear(int32_t start, int32_t end, double gradient, double constant, rgb_pixel colour, int32_t width, image_ctx *ctx);
 void clamped_vertical_line(int32_t starty, int32_t endy, rgb_pixel colour, image_ctx *ctx, int32_t constant);
 void point(pixel_coord p, rgb_pixel colour, image_ctx *ctx);
+void quadratic(double quadratic_c, int32_t linear_c, int32_t constant, rgb_pixel colour, image_ctx *ctx);
+void rect(pixel_coord center, uint32_t height, uint32_t width, rgb_pixel colour, image_ctx *ctx);
 
 int main(void){
   image_ctx ctx = {720, 720, {720/2, 720/2}, {0xFF, 0xFF, 0xFF}, NULL};
@@ -97,6 +99,10 @@ int main(void){
   clamped_vertical_line(-ctx.center.y, ctx.center.y, black, &ctx, 0);
 
 
+  //rect
+  pixel_coord center_rect = {500, 500};
+  rgb_pixel red = {0xFF, 0x00, 0x00};
+  rect(center_rect, 100, 60, red, &ctx);
 
   //square
   /*
@@ -107,15 +113,15 @@ int main(void){
 
   */
   //circle
-  pixel_coord center2 = {180, 180*0.5+(ctx.height*0.1)};
-  double radius = 5;
-  circle(center2, radius, nice_blue, &ctx);
   point((pixel_coord){90, 90*0.5+(ctx.height*0.1)}, nice_blue, &ctx);
   point((pixel_coord){-90, -90}, nice_blue, &ctx);
   //line
 
 
   clamped_linear(-ctx.center.x, ctx.center.x, 0.5, ctx.height*0.1, nice_blue, 1, &ctx);
+
+
+  quadratic(1, 0, 0, nice_blue, &ctx);
 
   if(png_image_write_to_file(&image, "output.png", 0, buffer, 0, NULL) == 0 ){
     perror("failed to write");
@@ -203,6 +209,32 @@ void square(pixel_coord center, uint32_t size, rgb_pixel colour, image_ctx *ctx)
   for(uint32_t i = center.y-(size/2); i < center.y+(size/2); i++){
     for(uint32_t j = center.x-(size/2); j < center.x+(size/2); j++){
       ctx->buffer[i][j] = colour;
+    }
+  }
+}
+
+void rect(pixel_coord center, uint32_t height, uint32_t width, rgb_pixel colour, image_ctx *ctx){
+
+  for(uint32_t i = center.y-(height/2); i < center.y+(height/2); i++){
+    for(uint32_t j = center.x-(width/2); j < center.x+(width/2); j++){
+      ctx->buffer[i][j] = colour;
+    }
+  }
+}
+
+
+void quadratic(double quadratic_c, int32_t linear_c, int32_t constant, rgb_pixel colour, image_ctx *ctx){
+  double x = -(double)ctx->width;
+  double y = 0;
+  long double scale = 1/7.2;
+  //printf("scale = %Lf\n", scale);
+  for(; x < ctx->width; x+=1){
+    y = (-(pow(quadratic_c*x, 2)) * (scale/10))-(linear_c*x)-constant;
+    //printf("x: %f, y: %f\n", x, y);
+    for(double i = y-2; i <= y+2; i++){
+      if(i+ctx->center.y >= 0 && i+ctx->center.y < (int32_t)ctx->width){
+        ctx->buffer[(uint32_t)roundf(i+ctx->center.y)][(uint32_t)x+ctx->center.x] = colour;
+      }
     }
   }
 }
