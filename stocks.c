@@ -10,7 +10,7 @@
 #include "graphics.h"
 
 int main(void){
-  image_ctx ctx = {720, 720, {720/2, 720/2}, {0x00, 0x00, 0x00}, NULL};
+  image_ctx ctx = {720, 720, {720/2, 720/2}, {0x2b, 0x2b, 0x2b}, NULL};
   assert(sizeof(rgb_pixel) == 3);
   rgb_pixel *buffer;
   png_image image;
@@ -51,9 +51,19 @@ int main(void){
   uint16_t candle_width = 50;
   uint16_t candle_height = 100;
   uint16_t candle_buffer_left = 20;
-  rgb_pixel red = {0xFF, 0, 0};
+  rgb_pixel red = {0xAA, 0, 0};
+  rgb_pixel green = {0, 0xAA, 0};
+  rgb_pixel grey = {0x3f, 0x3f, 0x3f};
+  int32_t pixels_per_int = ctx.width/25;
   pixel_coord rect_center = {candle_buffer_left + (candle_width/2), ctx.center.y};
+  pixel_coord rect_center2 = {rect_center.x + candle_width + candle_buffer_left, ctx.center.y-30};
+
+  for(int32_t i = -(ctx.width/2); i < (int32_t)(ctx.width/2); i+=pixels_per_int){
+    clamped_linear(-ctx.center.x, ctx.center.x, 0, i, grey, 1, &ctx); //line
+  }
+
   rect(rect_center, candle_height, candle_width, red, &ctx);
+  rect(rect_center2, candle_height-20, candle_width, green, &ctx);
 
 
   if(png_image_write_to_file(&image, "output.png", 0, buffer, 0, NULL) == 0 ){
