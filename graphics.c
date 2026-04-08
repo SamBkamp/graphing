@@ -3,7 +3,34 @@
 #include <stdint.h>
 #include <string.h>
 #include <math.h>
+#include <sys/mman.h>
 #include "graphics.h"
+
+image_ctx *create_context(uint32_t height, uint32_t width, rgb_pixel colour){
+  image_ctx *ret = malloc(sizeof(image_ctx));
+
+  ret->width = width;
+  ret->height = height;
+  ret->center = (pixel_coord){width/2, height/2};
+  ret->buffer = malloc(sizeof(ret->buffer)*width);
+  ret->bg_colour = colour;
+  ret->raw_buffer = mmap(NULL, height*width*sizeof(rgb_pixel),
+                         PROT_READ|PROT_WRITE,
+                         MAP_SHARED|MAP_ANON,
+                         -1, 0);
+
+  if(ret->raw_buffer == MAP_FAILED){
+    perror("couldn't allocate memory");
+    return NULL;
+  }
+
+  //populate columns variable
+  for(uint32_t i = 0; i < width; i++){
+    ret->buffer[i] = ret->raw_buffer + (width*i);
+  }
+
+  return ret;
+}
 
 double pythagoras(double length, double width){
   //ret^2 = sqrt(length^2+width^2)

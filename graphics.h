@@ -18,9 +18,10 @@ typedef struct{
   pixel_coord center;
   rgb_pixel bg_colour;
   rgb_pixel **buffer;
+  rgb_pixel *raw_buffer;
 }image_ctx;
 
-
+image_ctx *create_context(uint32_t height, uint32_t width, rgb_pixel colour);
 double pythagoras(double length, double width);
 void square(pixel_coord center, uint32_t size, rgb_pixel colour, image_ctx *ctx);
 void circle(pixel_coord center, double radius, rgb_pixel colour, image_ctx *ctx);
